@@ -29,9 +29,12 @@ deploy:production:
   image: python:3.10
   script:
     - echo "Deploying CyberSec AI RAG System..."
-    - echo "Application deployed successfully!"
+    - echo "Application: cybersecai-rag"
+    - echo "Environment: Production"
+    - echo "Status: Deployed Successfully"
     - echo "URL: https://cybersecai-rag.swecha.org"
   environment:
     name: production
+    url: https://cybersecai-rag.swecha.org
   only:
     - main

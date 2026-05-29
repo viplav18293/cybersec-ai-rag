@@ -1,40 +1,10 @@
 stages:
-  - build
-  - test
-  - deploy
+  - manual
 
-build:docker:
-  stage: build
-  image: python:3.10
+manual_deployment:
+  stage: manual
   script:
-    - echo "Building CyberSec AI RAG System..."
-    - pip install -r requirements.txt
-    - echo "Build successful!"
+    - echo "Manual deployment - run locally with: streamlit run app.py"
   only:
     - main
-
-test:python:
-  stage: test
-  image: python:3.10
-  script:
-    - echo "Running tests..."
-    - pip install -r requirements.txt
-    - echo "Tests passed!"
-  only:
-    - main
-  allow_failure: true
-
-deploy:production:
-  stage: deploy
-  image: python:3.10
-  script:
-    - echo "Deploying CyberSec AI RAG System..."
-    - echo "Application: cybersecai-rag"
-    - echo "Environment: Production"
-    - echo "Status: Deployed Successfully"
-    - echo "URL: https://cybersecai-rag.swecha.org"
-  environment:
-    name: production
-    url: https://cybersecai-rag.swecha.org
-  only:
-    - main
+  when: manual

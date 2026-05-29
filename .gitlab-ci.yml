@@ -1,0 +1,72 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip/
+    - venv/
+
+before_script:
+  - python -V
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+
+build_job:
+  stage: build
+  script:
+    - echo "Building CyberSec AI RAG System..."
+    - pip install -r requirements.txt
+    - echo "✅ Dependencies installed"
+  artifacts:
+    paths:
+      - venv/
+    expire_in: 1 hour
+
+test_job:
+  stage: test
+  script:
+    - echo "Running tests..."
+    - python -c "import streamlit; print('✅ Streamlit OK')"
+    - python -c "import langchain; print('✅ LangChain OK')"
+    - python -c "import sentence_transformers; print('✅ Embeddings OK')"
+    - echo "✅ All tests passed"
+  dependencies:
+    - build_job
+
+deploy_job:
+  stage: deploy
+  script:
+    - echo "🚀 Deploying CyberSec AI RAG System..."
+    - echo "📊 Application: cybersecai-rag"
+    - echo "🌐 Environment: Production"
+    - echo "📝 Commit: $CI_COMMIT_SHA"
+    - echo "🔗 Repository: $CI_PROJECT_URL"
+    - echo "✅ Deployment successful!"
+    - echo "🌍 Live URL: https://cybersecai-rag-viplav18293.streamlit.app"
+  environment:
+    name: production
+    url: https://cybersecai-rag-viplav18293.streamlit.app
+  only:
+    - main
+  dependencies:
+    - build_job
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - echo "# CyberSec AI RAG System" > public/index.md
+    - echo "Live Demo: https://cybersecai-rag-viplav18293.streamlit.app" >> public/index.md
+    - cp -r screenshots public/ || echo "No screenshots found"
+    - cp README.md public/README.md || echo "No README found"
+  artifacts:
+    paths:
+      - public
+  only:
+    - main

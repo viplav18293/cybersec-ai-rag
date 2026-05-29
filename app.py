@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 import logging
 import tempfile
 import os
@@ -106,7 +106,6 @@ with st.sidebar:
     
     st.divider()
     
-    # Status
     if st.session_state.docs_loaded:
         st.success("✅ Documents Indexed & Ready")
         st.write("💬 You can now ask questions!")
@@ -117,7 +116,6 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Main content
 if not st.session_state.docs_loaded:
     st.markdown("""
     ### 👋 Welcome to CyberSec AI!
@@ -155,7 +153,6 @@ else:
     st.subheader("💬 Chat with Your Documents")
     st.write(f"📚 **Documents loaded** | 💬 **{len(st.session_state.messages)//2}** conversations")
     
-    # Display chat messages
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -167,13 +164,11 @@ else:
                         st.write(source)
                         st.divider()
     
-    # Chat input
     if prompt := st.chat_input("Ask about cyber security threats..."):
         
         if not st.session_state.vectorstore:
             st.error("❌ Please upload and process documents first!")
         else:
-            # Add user message
             st.session_state.messages.append({
                 "role": "user",
                 "content": prompt
@@ -182,11 +177,9 @@ else:
             with st.chat_message("user"):
                 st.markdown(prompt)
             
-            # Generate response
             with st.chat_message("assistant"):
                 with st.spinner("🔍 Searching documents..."):
                     try:
-                        # Retrieve relevant documents
                         retriever = st.session_state.vectorstore.as_retriever(
                             search_kwargs={"k": 5}
                         )
@@ -196,14 +189,11 @@ else:
                             response = "❌ No relevant information found in documents. Please rephrase your question or upload more relevant documents."
                             sources = []
                         else:
-                            # Build smart response from retrieved documents
                             response = build_answer(prompt, docs)
                             sources = [doc.page_content[:300] for doc in docs]
                         
-                        # Display answer
                         st.markdown(response)
                         
-                        # Extract threat keywords
                         threat_keywords = [
                             'malware', 'ransomware', 'phishing', 'ddos',
                             'vulnerability', 'exploit', 'breach', 'attack',
@@ -224,7 +214,6 @@ else:
                             ])
                             st.markdown(threat_badges)
                         
-                        # Show sources
                         if sources:
                             with st.expander("📚 View Sources"):
                                 for i, source in enumerate(sources, 1):
@@ -233,7 +222,6 @@ else:
                                     if i < len(sources):
                                         st.divider()
                         
-                        # Save to chat history
                         st.session_state.messages.append({
                             "role": "assistant",
                             "content": response,
@@ -245,7 +233,6 @@ else:
                         st.error(error_response)
                         logger.error(f"Error: {str(e)}")
 
-# Footer
 st.divider()
 st.markdown("""
 <div style="text-align: center; color: #888; padding: 1rem;">
@@ -256,21 +243,15 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Helper function to build smart answers
 def build_answer(question: str, docs) -> str:
-    """
-    Build answer from retrieved documents
-    """
+    """Build answer from retrieved documents"""
     if not docs:
         return "No relevant information found."
     
-    # Combine document content
     combined_context = "\n\n".join([doc.page_content for doc in docs])
     
-    # Build response
     response = f"""Based on the documents provided, here's what I found:\n\n"""
     
-    # Add key information from documents
     for i, doc in enumerate(docs, 1):
         content = doc.page_content[:250]
         response += f"**Information {i}:**\n{content}...\n\n"

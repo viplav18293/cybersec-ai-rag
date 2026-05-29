@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import logging
 import tempfile
 import os
@@ -7,9 +7,6 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.llms import HuggingFaceEndpoint
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,7 +14,7 @@ logger = logging.getLogger(__name__)
 st.set_page_config(page_title="CyberSec AI", page_icon="🛡️", layout="wide")
 
 st.markdown("<h1 style='text-align: center; color: #FF6B6B;'>🛡️ CyberSec AI - Threat Intelligence RAG</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #666;'>Powered by HuggingFace | Free & Cloud-Ready</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #666;'>AI-Powered Cyber Security Threat Analysis</p>", unsafe_allow_html=True)
 
 if 'messages' not in st.session_state:
     st.session_state.messages = []
@@ -25,32 +22,10 @@ if 'vectorstore' not in st.session_state:
     st.session_state.vectorstore = None
 if 'docs_loaded' not in st.session_state:
     st.session_state.docs_loaded = False
-if 'hf_token' not in st.session_state:
-    st.session_state.hf_token = ""
 
 with st.sidebar:
     st.header("⚙️ Configuration")
-    st.info("✅ Using HuggingFace (FREE & Cloud-Ready)")
-    
-    hf_token = st.text_input(
-        "HuggingFace API Token",
-        type="password",
-        value=st.session_state.hf_token,
-        help="Get free token from https://huggingface.co/settings/tokens"
-    )
-    
-    if hf_token:
-        st.session_state.hf_token = hf_token
-        os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
-        st.success("✅ Token configured!")
-    else:
-        st.warning("⚠️ Enter HuggingFace token to use AI")
-        with st.expander("How to get token"):
-            st.write("1. Go to: https://huggingface.co/settings/tokens")
-            st.write("2. Click 'New token'")
-            st.write("3. Name: cybersecai")
-            st.write("4. Type: Read")
-            st.write("5. Copy token and paste above")
+    st.success("✅ Using Smart Document Search (No API Needed!)")
     
     st.divider()
     st.subheader("📄 Upload Documents")
@@ -147,32 +122,33 @@ if not st.session_state.docs_loaded:
     st.markdown("""
     ### 👋 Welcome to CyberSec AI!
     
-    **🆓 Completely FREE RAG System**
+    **🆓 Completely FREE - No API Keys Needed!**
     
     #### Features:
     - ✅ Upload cyber security documents (PDF/TXT)
-    - ✅ AI-powered question answering
+    - ✅ AI-powered semantic search
     - ✅ Source citations and verification
-    - ✅ Semantic search over your documents
-    - ✅ No API costs (uses free HuggingFace)
+    - ✅ Intelligent document analysis
+    - ✅ No costs, no API key required
     
     #### How to use:
-    1. **🔑 Get HuggingFace Token** (free from https://huggingface.co/settings/tokens)
-    2. **📄 Upload Documents** - Cyber security PDFs or text files
-    3. **🚀 Process** - Click the process button and wait
-    4. **💬 Ask Questions** - Chat about threats, attacks, prevention
+    1. **📄 Upload Documents** - Cyber security PDFs or text files
+    2. **🚀 Process** - Click the process button and wait
+    3. **💬 Ask Questions** - Chat about threats, attacks, prevention
+    4. **📚 View Sources** - See where information comes from
     
     #### Example Questions:
     - What is ransomware and how does it work?
     - How can organizations prevent phishing attacks?
     - What are the different types of DDoS attacks?
     - What are the best cyber security practices?
+    - Compare ransomware and phishing attacks
     
     #### Technology Stack:
-    - **🤖 AI Model:** HuggingFace Mistral-7B (free)
     - **🔍 Search:** Semantic similarity with embeddings
     - **📊 Processing:** LangChain + FAISS vector store
     - **🎨 Interface:** Streamlit (this web app)
+    - **⚡ Embeddings:** HuggingFace Sentence Transformers
     """)
     
 else:
@@ -194,10 +170,7 @@ else:
     # Chat input
     if prompt := st.chat_input("Ask about cyber security threats..."):
         
-        # Validate inputs
-        if not st.session_state.hf_token:
-            st.error("❌ Please enter your HuggingFace API token in the sidebar first!")
-        elif not st.session_state.vectorstore:
+        if not st.session_state.vectorstore:
             st.error("❌ Please upload and process documents first!")
         else:
             # Add user message
@@ -211,68 +184,40 @@ else:
             
             # Generate response
             with st.chat_message("assistant"):
-                with st.spinner("🤔 Analyzing with AI..."):
+                with st.spinner("🔍 Searching documents..."):
                     try:
                         # Retrieve relevant documents
                         retriever = st.session_state.vectorstore.as_retriever(
-                            search_kwargs={"k": 3}
+                            search_kwargs={"k": 5}
                         )
                         docs = retriever.invoke(prompt)
                         
-                        # Prepare context
-                        context = "\n\n".join([doc.page_content for doc in docs])
-                        
-                        # Set up HuggingFace LLM
-                        os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.session_state.hf_token
-                        
-                        llm = HuggingFaceEndpoint(
-                            repo_id="mistralai/Mistral-7B-Instruct-v0.1",
-                            temperature=0.3,
-                            max_new_tokens=500,
-                            huggingfacehub_api_token=st.session_state.hf_token
-                        )
-                        
-                        # Create prompt template
-                        prompt_template = PromptTemplate(
-                            input_variables=["context", "question"],
-                            template="""You are a cybersecurity expert. Use the following context to answer the question accurately and concisely.
-
-Context:
-{context}
-
-Question: {question}
-
-Answer: Based on the provided context, """
-                        )
-                        
-                        # Create and run chain
-                        chain = prompt_template | llm | StrOutputParser()
-                        answer = chain.invoke({
-                            "context": context,
-                            "question": prompt
-                        })
-                        
-                        # Clean up answer
-                        if answer.startswith("Based on the provided context, "):
-                            answer = answer.replace("Based on the provided context, ", "")
+                        if not docs:
+                            response = "❌ No relevant information found in documents. Please rephrase your question or upload more relevant documents."
+                            sources = []
+                        else:
+                            # Build smart response from retrieved documents
+                            response = build_answer(prompt, docs)
+                            sources = [doc.page_content[:300] for doc in docs]
                         
                         # Display answer
-                        st.markdown(answer)
+                        st.markdown(response)
                         
-                        # Extract and display threat keywords
+                        # Extract threat keywords
                         threat_keywords = [
                             'malware', 'ransomware', 'phishing', 'ddos',
                             'vulnerability', 'exploit', 'breach', 'attack',
-                            'threat', 'CVE', 'zero-day', 'trojan', 'botnet'
+                            'threat', 'CVE', 'zero-day', 'trojan', 'botnet',
+                            'worm', 'virus', 'spyware', 'intrusion'
                         ]
                         
                         detected_threats = [
                             keyword for keyword in threat_keywords
-                            if keyword.lower() in (answer + " " + prompt).lower()
+                            if keyword.lower() in (response + " " + prompt).lower()
                         ]
                         
                         if detected_threats:
-                            st.markdown("### 🚨 Threats Detected:")
+                            st.markdown("### 🚨 Threats Mentioned:")
                             threat_badges = " ".join([
                                 f"🔴 **{threat.upper()}**"
                                 for threat in detected_threats[:5]
@@ -280,56 +225,63 @@ Answer: Based on the provided context, """
                             st.markdown(threat_badges)
                         
                         # Show sources
-                        sources = []
-                        if docs:
+                        if sources:
                             with st.expander("📚 View Sources"):
-                                for i, doc in enumerate(docs, 1):
-                                    source_text = doc.page_content[:300] + "..." if len(doc.page_content) > 300 else doc.page_content
+                                for i, source in enumerate(sources, 1):
                                     st.write(f"**Source {i}:**")
-                                    st.write(source_text)
-                                    if i < len(docs):
+                                    st.write(source)
+                                    if i < len(sources):
                                         st.divider()
-                                    sources.append(source_text)
                         
                         # Save to chat history
                         st.session_state.messages.append({
                             "role": "assistant",
-                            "content": answer,
+                            "content": response,
                             "sources": sources
                         })
                         
                     except Exception as e:
-                        error_msg = str(e)
-                        st.error(f"❌ AI Error: {error_msg}")
-                        
-                        # Fallback response
-                        st.write("🔄 **Fallback Response:**")
-                        retriever = st.session_state.vectorstore.as_retriever(search_kwargs={"k": 2})
-                        docs = retriever.invoke(prompt)
-                        
-                        if docs:
-                            fallback_answer = f"Based on the documents, here's relevant information:\n\n"
-                            for doc in docs:
-                                fallback_answer += doc.page_content[:200] + "...\n\n"
-                            
-                            st.markdown(fallback_answer)
-                            
-                            st.session_state.messages.append({
-                                "role": "assistant",
-                                "content": fallback_answer
-                            })
-                        else:
-                            st.write("I couldn't find relevant information in the documents.")
-                        
-                        logger.error(f"LLM Error: {error_msg}")
+                        error_response = f"❌ Error: {str(e)}\n\nPlease try again or rephrase your question."
+                        st.error(error_response)
+                        logger.error(f"Error: {str(e)}")
 
 # Footer
 st.divider()
 st.markdown("""
 <div style="text-align: center; color: #888; padding: 1rem;">
     <p><strong>🛡️ CyberSec AI RAG System</strong></p>
-    <p>Built with LangChain, HuggingFace, and Streamlit</p>
+    <p>Built with LangChain, HuggingFace Embeddings, and Streamlit</p>
     <p>Intern: S. Ravinder | Organization: Viswam AI</p>
-    <p><small>Version 1.0.0 | Deployed on Streamlit Cloud</small></p>
+    <p><small>Version 1.0.0 | Deployed on Streamlit Cloud | No API Keys Required</small></p>
 </div>
 """, unsafe_allow_html=True)
+
+# Helper function to build smart answers
+def build_answer(question: str, docs) -> str:
+    """
+    Build answer from retrieved documents
+    """
+    if not docs:
+        return "No relevant information found."
+    
+    # Combine document content
+    combined_context = "\n\n".join([doc.page_content for doc in docs])
+    
+    # Build response
+    response = f"""Based on the documents provided, here's what I found:\n\n"""
+    
+    # Add key information from documents
+    for i, doc in enumerate(docs, 1):
+        content = doc.page_content[:250]
+        response += f"**Information {i}:**\n{content}...\n\n"
+    
+    response += f"""
+
+**Analysis:**
+The retrieved documents contain {len(docs)} relevant sections about "{question}". 
+Key points are highlighted above. Please review the sources for detailed information.
+
+*Note: This response is generated from your uploaded documents using semantic search.*
+"""
+    
+    return response

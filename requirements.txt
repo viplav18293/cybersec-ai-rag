@@ -8,7 +8,6 @@ pypdf
 python-docx
 sentence-transformers
 faiss-cpu
-huggingface-hub
 numpy
 tiktoken
 tqdm

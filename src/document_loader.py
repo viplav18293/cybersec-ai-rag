@@ -8,13 +8,13 @@ from pathlib import Path
 import logging
 import tempfile
 
-from langchain.document_loaders import (
+from langchain_community.document_loaders import (
     PyPDFLoader,
     TextLoader,
     Docx2txtLoader,
     UnstructuredMarkdownLoader
 )
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 
 from config.settings import settings

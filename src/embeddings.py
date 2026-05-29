@@ -5,7 +5,8 @@ Embedding generation module for converting text to vectors
 import logging
 from typing import List, Optional
 
-from langchain.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings, OpenAIEmbeddings
 
 from config.settings import settings
 

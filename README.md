@@ -1,39 +1,55 @@
-# 🛡️ CyberSec AI - RAG System for Cyber Security Threat Intelligence
+# 🛡️ CyberSec AI - RAG System for Threat Intelligence
 
-An AI-powered Retrieval-Augmented Generation (RAG) system specialized in Cyber Security Threat Analysis.
+**An AI-powered Retrieval-Augmented Generation (RAG) system for analyzing cyber security threats**
 
-## 👤 Project Information
+---
 
-- **Intern Name:** S. Ravinder
+## 📋 Project Information
+
+- **Intern:** S. Ravinder
 - **Organization:** Viswam AI
-- **Platform:** Swecha (code.swecha.org)
+- **Platform:** code.swecha.org (GitLab)
 - **Topic:** AI Cyber Security Threat Intelligence
+- **Duration:** Internship Project
+- **Status:** ✅ Completed & Working
+
+---
 
 ## 🎯 Project Overview
 
-This RAG system provides intelligent analysis and responses to cyber security threats using:
-- Advanced document processing
-- Semantic search capabilities  
-- AI-powered threat analysis
-- Real-time chat interface
+CyberSec AI is a **Retrieval-Augmented Generation (RAG)** system that allows users to upload cyber security threat documents and ask intelligent questions about them. The system uses:
 
-## 🚀 Quick Start
+- **Document Processing:** Automatic PDF/TXT loading and chunking
+- **Embeddings:** HuggingFace Sentence Transformers
+- **Vector Store:** FAISS for efficient similarity search
+- **LLM:** TinyLlama (local, free, no API costs)
+- **UI:** Streamlit for interactive chat interface
 
-```bash
-# 1. Clone repository
-git clone https://code.swecha.org/YOUR_USERNAME/cybersecai-rag.git
-cd cybersecai-rag
+---
 
-# 2. Create virtual environment
-python -m venv venv
-venv\Scripts\activate
+## 📚 Document Used & Why
 
-# 3. Install dependencies
-pip install -r requirements.txt
+### Document Source
+We use three cyber security threat documents:
+1. **ransomware_threats.txt** - Ransomware attack patterns and prevention
+2. **phishing_attacks.txt** - Phishing techniques and defense strategies
+3. **ddos_attacks.txt** - DDoS attack types and mitigation methods
 
-# 4. Setup environment variables
-copy .env.example .env
-# Edit .env and add your OpenAI API key
+### Why These Documents?
+- ✅ Comprehensive coverage of major cyber threats
+- ✅ Practical prevention strategies
+- ✅ Real-world attack statistics
+- ✅ Relevant for threat intelligence analysis
+- ✅ Good mix of technical and strategic information
 
-# 5. Run the application
-streamlit run app.py
+---
+
+## ⚙️ How Chunking Works
+
+### Chunking Strategy
+```python
+RecursiveCharacterTextSplitter(
+    chunk_size=1000,           # Maximum tokens per chunk
+    chunk_overlap=200,         # Overlap for context preservation
+    separators=["\n\n", "\n", ". ", " ", ""]  # Smart splitting priority
+)

@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional
 from pathlib import Path
 
-from langchain.vectorstores import FAISS, Chroma
+from langchain_community.vectorstores import FAISS, Chroma
 from langchain.schema import Document
 
 from config.settings import settings

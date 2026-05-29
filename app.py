@@ -1,264 +1,171 @@
-# app.py
-"""
-Main Streamlit application for CyberSec AI RAG System
-"""
 import streamlit as st
 import logging
-from pathlib import Path
-from typing import List
+import tempfile
+import os
 
-from config.settings import settings
-from src.document_loader import CyberSecDocumentProcessor
-from src.embeddings import EmbeddingGenerator
-from src.vector_store import VectorStoreManager
-from src.retrieval import RetrieverManager
-from src.llm_chain import LLMChainManager
-from utils.helpers import (
-    format_response_with_sources,
-    extract_threat_entities,
-    validate_query
-)
+from utils.loader import DocumentLoader
+from utils.embedder import EmbeddingGenerator
+from utils.retriever import DocumentRetriever
+from langchain_community.llms import Ollama
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Page configuration
-st.set_page_config(
-    page_title=settings.PAGE_TITLE,
-    page_icon=settings.PAGE_ICON,
-    layout=settings.LAYOUT,
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="CyberSec AI RAG", page_icon="🛡️", layout="wide")
 
-# Custom CSS
-st.markdown("""
-    <style>
-    .main-header {
-        color: #FF6B6B;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .threat-badge {
-        background-color: #FFE66D;
-        padding: 0.3rem 0.6rem;
-        border-radius: 0.3rem;
-        margin: 0.2rem;
-        display: inline-block;
-    }
-    .source-box {
-        background-color: #F0F0F0;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin: 0.5rem 0;
-    }
-    </style>
-""", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #FF6B6B;'>🛡️ CyberSec AI - Threat Intelligence RAG System</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #666;'>Powered by TinyLlama | Free & Local</p>", unsafe_allow_html=True)
 
-# Title
-st.markdown("""
-<h1 class="main-header">🛡️ CyberSec AI - Threat Intelligence RAG System</h1>
-<p style="text-align: center; color: #666;">
-    Intelligent analysis of cyber security threats using AI and document retrieval
-</p>
-""", unsafe_allow_html=True)
-
-# Initialize session state
 if 'messages' not in st.session_state:
     st.session_state.messages = []
+if 'retriever' not in st.session_state:
+    st.session_state.retriever = None
+if 'docs_loaded' not in st.session_state:
+    st.session_state.docs_loaded = False
 
-if 'vector_store_manager' not in st.session_state:
-    st.session_state.vector_store_manager = None
-
-if 'llm_chain' not in st.session_state:
-    st.session_state.llm_chain = None
-
-if 'documents_loaded' not in st.session_state:
-    st.session_state.documents_loaded = False
-
-# Sidebar
 with st.sidebar:
-    st.header("⚙️ Configuration & Upload")
+    st.header("⚙️ Configuration")
+    st.info("✅ Using TinyLlama (FREE - Local)")
     
-    # API Key
-    st.subheader("🔑 API Configuration")
-    api_key = st.text_input(
-        "OpenAI API Key",
-        value=settings.OPENAI_API_KEY or "",
-        type="password",
-        help="Enter your OpenAI API key"
-    )
+    st.divider()
+    st.subheader("📄 Upload Documents")
     
-    if api_key:
-        settings.OPENAI_API_KEY = api_key
+    uploaded_files = st.file_uploader("Choose cyber security documents", type=['pdf', 'txt'], accept_multiple_files=True)
+    
+    if uploaded_files and st.button("🚀 Process Documents", type="primary", use_container_width=True):
+        with st.spinner("Processing documents..."):
+            try:
+                loader = DocumentLoader(chunk_size=1000, chunk_overlap=200)
+                embedder = EmbeddingGenerator(model_name="sentence-transformers/all-MiniLM-L6-v2")
+                retriever = DocumentRetriever(embedder.get_embeddings_object())
+                
+                all_chunks = []
+                
+                for uploaded_file in uploaded_files:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=f'_{uploaded_file.name}') as tmp:
+                        tmp.write(uploaded_file.getvalue())
+                        tmp_path = tmp.name
+                    
+                    try:
+                        chunks = loader.load_and_chunk(tmp_path)
+                        all_chunks.extend(chunks)
+                        st.success(f"✅ Processed {uploaded_file.name}")
+                    finally:
+                        try:
+                            os.unlink(tmp_path)
+                        except:
+                            pass
+                
+                if all_chunks:
+                    st.info(f"Creating vector store with {len(all_chunks)} chunks...")
+                    retriever.create_vector_store(all_chunks)
+                    st.session_state.retriever = retriever
+                    st.session_state.docs_loaded = True
+                    
+                    st.success(f"🎉 Ready! Indexed {len(all_chunks)} chunks")
+                    st.balloons()
+                
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+                logger.error(f"Error: {str(e)}")
     
     st.divider()
     
-    # Document Upload
-    st.subheader("📄 Document Upload")
-    uploaded_files = st.file_uploader(
-        "Upload cyber security documents",
-        type=['pdf', 'txt', 'docx', 'md'],
-        accept_multiple_files=True,
-        help="Upload documents about cyber security threats"
-    )
-    
-    if uploaded_files:
-        if st.button("📤 Process Documents", type="primary", use_container_width=True):
-            with st.spinner("Processing documents..."):
-                try:
-                    # Initialize processor
-                    processor = CyberSecDocumentProcessor(
-                        chunk_size=settings.CHUNK_SIZE,
-                        chunk_overlap=settings.CHUNK_OVERLAP
-                    )
-                    
-                    all_documents = []
-                    
-                    # Process each uploaded file
-                    for uploaded_file in uploaded_files:
-                        docs = processor.load_from_uploaded_file(uploaded_file)
-                        all_documents.extend(docs)
-                        st.success(f"✅ Loaded {uploaded_file.name}")
-                    
-                    if all_documents:
-                        # Extract threat information
-                        all_documents = processor.extract_threat_info(all_documents)
-                        
-                        # Create vector store
-                        embedding_gen = EmbeddingGenerator(embedding_type="huggingface")
-                        vs_manager = VectorStoreManager(
-                            store_type="faiss",
-                            embedding_generator=embedding_gen
-                        )
-                        
-                        st.info(f"Creating vector store with {len(all_documents)} chunks...")
-                        vs_manager.create_vector_store(all_documents)
-                        vs_manager.save_vector_store()
-                        
-                        # Save to session state
-                        st.session_state.vector_store_manager = vs_manager
-                        st.session_state.documents_loaded = True
-                        
-                        # Initialize LLM chain
-                        retriever_manager = RetrieverManager(vs_manager)
-                        llm_chain = LLMChainManager(retriever_manager)
-                        st.session_state.llm_chain = llm_chain
-                        
-                        st.success(f"✅ Successfully processed {len(all_documents)} document chunks!")
-                        st.info("🎉 Ready for querying!")
-                    else:
-                        st.error("No documents were loaded")
-                        
-                except Exception as e:
-                    st.error(f"❌ Error processing documents: {str(e)}")
-                    logger.error(f"Error: {str(e)}")
-    
-    st.divider()
-    
-    # Status
-    st.subheader("📊 System Status")
-    if st.session_state.documents_loaded:
-        st.success("✅ Documents loaded and indexed")
+    if st.session_state.docs_loaded:
+        st.success("✅ Documents Ready")
     else:
-        st.warning("⏳ Waiting for documents to be uploaded")
+        st.info("Upload documents to start")
     
-    # Clear chat history
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
+    if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-# Main content area
-if not st.session_state.documents_loaded:
-    st.info("""
-    👋 Welcome to CyberSec AI!
+if not st.session_state.docs_loaded:
+    st.markdown("""
+    ### 👋 Welcome to CyberSec AI!
     
-    To get started:
-    1. Enter your **OpenAI API Key** in the sidebar
-    2. **Upload** cyber security threat documents (PDF, TXT, DOCX, MD)
-    3. Click **Process Documents** to create the vector database
-    4. Start asking questions about threats!
+    **About this RAG System:**
+    - 🎓 Built for Viswam AI internship
+    - 📚 Analyzes cyber security threat documents
+    - 🤖 Uses TinyLlama (local, free)
+    - 🔍 Retrieval-Augmented Generation (RAG)
     
-    ### Features:
-    - 📚 Process multiple document formats
-    - 🔍 Semantic search over your documents
-    - 💬 Interactive chat interface
-    - 📊 Threat detection and analysis
-    - 🎯 Source citation and verification
+    **How RAG Works:**
+    1. Load documents
+    2. Split into chunks (1000 tokens each)
+    3. Generate embeddings (HuggingFace)
+    4. Store in vector database (FAISS)
+    5. Retrieve relevant docs for each query
+    6. Generate answer using LLM
+    
+    **Steps to Use:**
+    1. Upload cyber security documents (PDF/TXT)
+    2. Click "Process Documents"
+    3. Ask questions about threats
     """)
 else:
-    # Display chat messages
+    st.subheader("💬 Chat with Your Documents")
+    
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-            
             if "sources" in message and message["sources"]:
-                with st.expander("📚 View Sources"):
-                    st.markdown(message["sources"])
+                with st.expander("📚 Sources"):
+                    for i, source in enumerate(message["sources"], 1):
+                        st.write(f"**Source {i}:** {source[:150]}...")
     
-    # Chat input
     if prompt := st.chat_input("Ask about cyber security threats..."):
-        # Validate query
-        if not validate_query(prompt):
-            st.error("⚠️ Please enter a valid query (at least 3 characters)")
-        elif not st.session_state.llm_chain:
-            st.error("❌ LLM chain not initialized. Please upload documents first.")
-        else:
-            # Add user message to chat
-            st.session_state.messages.append({
-                "role": "user",
-                "content": prompt
-            })
-            
-            # Display user message
-            with st.chat_message("user"):
-                st.markdown(prompt)
-            
-            # Generate response
-            with st.chat_message("assistant"):
-                with st.spinner("🤔 Analyzing threat information..."):
-                    try:
-                        # Get response from LLM chain
-                        response = st.session_state.llm_chain.query(prompt)
-                        
-                        # Format response
-                        answer, sources = format_response_with_sources(response)
-                        
-                        # Display answer
-                        st.markdown(answer)
-                        
-                        # Extract and display threats
-                        threats = extract_threat_entities(answer + " " + prompt)
-                        if threats:
-                            st.markdown("### 🚨 Threats Detected:")
-                            threat_html = " ".join([
-                                f'<span class="threat-badge">{threat.upper()}</span>'
-                                for threat in threats
-                            ])
-                            st.markdown(threat_html, unsafe_allow_html=True)
-                        
-                        # Display sources
-                        if sources:
-                            with st.expander("📚 View Sources"):
-                                st.markdown(sources)
-                        
-                        # Save to chat history
-                        st.session_state.messages.append({
-                            "role": "assistant",
-                            "content": answer,
-                            "sources": sources
-                        })
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error generating response: {str(e)}")
-                        logger.error(f"Error: {str(e)}")
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing with TinyLlama..."):
+                try:
+                    docs = st.session_state.retriever.retrieve_documents(prompt, k=3)
+                    context = "\n\n".join([doc.page_content for doc in docs])
+                    
+                    llm = Ollama(
+                        model="tinyllama",
+                        base_url="http://localhost:11434",
+                        temperature=0.3
+                    )
+                    
+                    prompt_template = PromptTemplate(
+                        input_variables=["context", "question"],
+                        template="""You are a cyber security expert. Answer based on the context.
 
-# Footer
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+                    )
+                    
+                    chain = prompt_template | llm | StrOutputParser()
+                    answer = chain.invoke({"context": context, "question": prompt})
+                    
+                    st.markdown(answer)
+                    
+                    sources = [doc.page_content[:200] for doc in docs]
+                    
+                    with st.expander("📚 Retrieved Sources"):
+                        for i, doc in enumerate(docs, 1):
+                            st.write(f"**Source {i}:** {doc.page_content[:300]}...")
+                    
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": answer,
+                        "sources": sources
+                    })
+                    
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    logger.error(f"Error: {str(e)}")
+
 st.divider()
-st.markdown("""
-<div style="text-align: center; color: #888; margin-top: 2rem;">
-    <p>🛡️ CyberSec AI RAG System | Built with LangChain & Streamlit</p>
-    <p>Intern: Viplav | Organization: Viswam AI</p>
-    <p>Version: 1.0.0</p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #888;'>🛡️ CyberSec AI RAG | TinyLlama | Viswam AI</p>", unsafe_allow_html=True)

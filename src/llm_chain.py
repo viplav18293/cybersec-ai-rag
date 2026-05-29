@@ -5,8 +5,8 @@ LLM Chain setup for RAG system
 import logging
 from typing import Optional, Dict, Any
 
-from langchain.llms import OpenAI
-from langchain.chat_models import ChatOpenAI
+from langchain_community.llms import OpenAI
+from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA, ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate

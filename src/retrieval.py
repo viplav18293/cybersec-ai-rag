@@ -8,8 +8,7 @@ from typing import List, Optional
 from langchain.schema import Document
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
-from langchain.llms import OpenAI
-
+from langchain_community.llms import OpenAI
 from config.settings import settings
 from src.vector_store import VectorStoreManager
 

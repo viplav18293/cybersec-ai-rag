@@ -1,29 +1,15 @@
-# Core Dependencies
 streamlit==1.29.0
 python-dotenv==1.0.0
-
-# LangChain
 langchain==0.1.0
 langchain-community==0.0.10
 langchain-openai==0.0.2
-
-# Document Processing
 pypdf==3.17.4
 python-docx==1.1.0
 unstructured==0.11.8
-
-# Embeddings & Vector Stores
 sentence-transformers==2.2.2
-faiss-cpu==1.7.4
-chromadb==0.4.22
-
-# LLMs
-openai==1.7.2
-
-# Data Processing
+faiss-cpu==1.14.2
 pandas==2.1.4
 numpy==1.26.2
-
-# Utilities
 tiktoken==0.5.2
 tqdm==4.66.1
+langchain-core==0.1.0
